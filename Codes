@@ -1,0 +1,150 @@
+# dart-file-explorer-or-dart-firebase-storage-app
+A Flutter app with Firebase and Base L2 integration. Originally built for a freelance project that was abandoned due to unpaid invoice.
+
+    Flutter File(base version)
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(); // Replace with firebase_options if needed
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Dart File Explorer',
+      theme: ThemeData.dark(),
+      home: FileExplorerScreen(),
+    );
+  }
+}
+
+class FileExplorerScreen extends StatefulWidget {
+  @override
+  _FileExplorerScreenState createState() => _FileExplorerScreenState();
+}
+
+class _FileExplorerScreenState extends State<FileExplorerScreen> {
+  List<Reference> files = [];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    loadFiles();
+  }
+
+  Future<void> loadFiles() async {
+    final storageRef = FirebaseStorage.instance.ref().child('uploads');
+    final result = await storageRef.listAll();
+
+    setState(() {
+      files = result.items;
+      loading = false;
+    });
+  }
+
+  Future<void> uploadFile() async {
+    final picked = await FilePicker.platform.pickFiles();
+    if (picked != null) {
+      final file = File(picked.files.single.path!);
+      final filename = picked.files.single.name;
+
+      final storageRef = FirebaseStorage.instance.ref().child('uploads/$filename');
+      await storageRef.putFile(file);
+
+      loadFiles();
+    }
+  }
+
+  Future<void> downloadFile(String name) async {
+    final ref = FirebaseStorage.instance.ref().child('uploads/$name');
+    final url = await ref.getDownloadURL();
+    print('Download URL: $url');
+    // Could implement actual download logic
+  }
+
+  Future<void> deleteFile(String name) async {
+    final ref = FirebaseStorage.instance.ref().child('uploads/$name');
+    await ref.delete();
+    loadFiles();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("File Explorer"),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.upload),
+            onPressed: uploadFile,
+          ),
+        ],
+      ),
+      body: loading
+          ? Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              itemCount: files.length,
+              itemBuilder: (context, index) {
+                final fileRef = files[index];
+                final fileName = fileRef.name;
+
+                return ListTile(
+                  title: Text(fileName),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.download),
+                        onPressed: () => downloadFile(fileName),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.delete),
+                        onPressed: () => deleteFile(fileName),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
+
+
+
+     pubspec.yaml(key parts)
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^2.15.1
+  firebase_storage: ^11.4.0
+  file_picker: ^6.1.1
+
+ gitignore
+ # Dart/Pub
+.dart_tool/
+.packages
+
+# Flutter
+build/
+flutter_*.png
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Firebase
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
+
+# VS Code
+.vscode/
+
+
